@@ -1,0 +1,14 @@
+recursive-include owl_dev *.py
+
+include setup.py
+include setup.cfg
+include CHANGELOG.rst
+include LICENSE
+include README.md
+include README.rst
+include requirements.txt
+include MANIFEST.in
+include owl_dev/owl_dev.yaml
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
