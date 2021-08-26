@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 from contextlib import closing, suppress
 from pathlib import Path
@@ -22,28 +23,40 @@ class JSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+def setup_output(output_dir, clean=False):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if clean:
+        shutil.rmtree(output_dir)
+
+    with suppress(Exception):
+        (output_dir / OWL_DONE).unlink()
+
+    with suppress(Exception):
+        (output_dir / SQLITEDB).unlink()
+
+    with open(f"{output_dir}/env.yaml", "w") as fh:
+        fh.write(json.dumps(dict(os.environ)))
+
+
 def pipeline(func=None):
     def decorator(function):
         def wrapper(*args, **kwargs):
             pdef = wrapper.config
             if func is not None:
-                output_dir = func(**kwargs)
+                pre = func(**kwargs)
+                output_dir = pre.get("output_dir")
+                clean_output = pre.get("clean_output", False)
             else:
                 output_dir = kwargs.get("output", None)
+                clean_output = kwargs.get("clean_output", False)
+
             if output_dir is not None:
-                output_dir.mkdir(parents=True, exist_ok=True)
-
-                with suppress(Exception):
-                    (output_dir / OWL_DONE).unlink()
-
-                with suppress(Exception):
-                    (output_dir / SQLITEDB).unlink()
+                setup_output(output_dir, clean=clean_output)
 
                 db.init_database(f"sqlite:///{output_dir}/{SQLITEDB}")
                 with open(f"{output_dir}/config.yaml", "w") as fh:
                     fh.write(json.dumps(pdef))
-                with open(f"{output_dir}/env.yaml", "w") as fh:
-                    fh.write(json.dumps(dict(os.environ)))
+
             else:
                 db.init_database("sqlite:///:memory:")
 
