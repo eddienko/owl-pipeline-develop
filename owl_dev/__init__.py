@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import shutil
@@ -12,7 +13,7 @@ __email__ = "eglez@ast.cam.ac.uk"
 __version__ = "0.1.0"
 
 
-OWL_DONE = ".owl_completed"
+OWL_DONE = "OWL_DONE"
 SQLITEDB = "sqlite.db"
 
 
@@ -38,12 +39,13 @@ def setup_output(output_dir, clean=False):
         fh.write(json.dumps(dict(os.environ)))
 
 
-def pipeline(func=None):
+def pipeline(callable=None):
     def decorator(function):
+        @functools.wraps(function)
         def wrapper(*args, **kwargs):
             pdef = wrapper.config
-            if func is not None:
-                pre = func(**kwargs)
+            if callable is not None:
+                pre = callable(**kwargs)
                 output_dir = pre.get("output_dir")
                 clean_output = pre.get("clean_output", False)
             else:
@@ -77,6 +79,9 @@ def pipeline(func=None):
             return result
 
         return wrapper
+
+    if callable is not None:
+        return decorator(callable)
 
     return decorator
 
