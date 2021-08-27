@@ -1,3 +1,4 @@
 distributed
 dask
 sqlalchemy
+toolz

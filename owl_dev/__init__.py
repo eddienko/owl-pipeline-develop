@@ -6,6 +6,8 @@ import sys
 from contextlib import closing, suppress
 from pathlib import Path
 
+from toolz import curry
+
 from owl_dev import database as db
 
 __author__ = "Eduardo Gonzalez Solares"
@@ -44,62 +46,56 @@ def setup_output(output_dir, clean=False):
         fh.write(json.dumps(dict(os.environ)))
 
 
-def pipeline(callable=None):
-    def decorator(function):
-        @functools.wraps(function)
-        def wrapper(*args, **kwargs):
-            try:
-                pdef = wrapper.config
-            except Exception:
-                pdef = {}
+@curry
+def pipeline(function, settings=None):
+    def wrapper(*args, **kwargs):
+        try:
+            pdef = wrapper.config
+        except Exception:
+            pdef = {}
 
-            if callable is not None:
-                pre = callable(**kwargs)
-                output_dir = pre.get("output_dir")
-                clean_output = pre.get("clean_output", False)
-            else:
-                for k in ["output", "output_dir"]:
-                    output_dir = kwargs.get(k, None)
-                    if output_dir is not None:
-                        break
-                clean_output = kwargs.get("clean_output", False)
-
-            if output_dir is not None:
-                setup_output(output_dir, clean=clean_output)
-
-                # db.init_database(f"sqlite:///{output_dir}/{SQLITEDB}")
-                with open(f"{output_dir}/config.yaml", "w") as fh:
-                    fh.write(json.dumps(pdef))
-
-            # else:
-            #     db.init_database("sqlite:///:memory:")
-
-            # with closing(db.DBSession()) as session:
-            #     info = db.Info(
-            #         config=JSONEncoder().encode(pdef),
-            #         env=JSONEncoder().encode(dict(os.environ)),
-            #         python=sys.version,
-            #     )
-            #     session.add(info)
-            #     session.commit()
-
-            try:
-                success = False
-                result = function(*args, **kwargs)
-                success = True
-            finally:
+        if settings is not None:
+            pre = settings(**kwargs)
+            output_dir = pre.get("output_dir", None)
+            clean_output = pre.get("clean_output", False)
+        else:
+            for k in ["output", "output_dir"]:
+                output_dir = kwargs.get(k, None)
                 if output_dir is not None:
-                    if success:
-                        (output_dir / OWL_SUCCESS).touch()
-                    else:
-                        (output_dir / OWL_ERROR).touch()
+                    break
+            clean_output = kwargs.get("clean_output", False)
 
-            return result
+        if output_dir is not None:
+            setup_output(output_dir, clean=clean_output)
 
-        return wrapper
+            # db.init_database(f"sqlite:///{output_dir}/{SQLITEDB}")
+            with open(f"{output_dir}/config.yaml", "w") as fh:
+                fh.write(json.dumps(pdef))
 
-    if callable is not None:
-        return decorator(callable)
+        # else:
+        #     db.init_database("sqlite:///:memory:")
 
-    return decorator
+        # with closing(db.DBSession()) as session:
+        #     info = db.Info(
+        #         config=JSONEncoder().encode(pdef),
+        #         env=JSONEncoder().encode(dict(os.environ)),
+        #         python=sys.version,
+        #     )
+        #     session.add(info)
+        #     session.commit()
+
+        try:
+            success = False
+            result = function(*args, **kwargs)
+            success = True
+        finally:
+            if output_dir is not None:
+                if success:
+                    (output_dir / OWL_SUCCESS).touch()
+                else:
+                    (output_dir / OWL_ERROR).touch()
+
+        return result
+
+    return wrapper
 
