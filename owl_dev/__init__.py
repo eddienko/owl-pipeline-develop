@@ -8,12 +8,14 @@ from pathlib import Path
 
 from owl_dev import database as db
 
-_author__ = "Eduardo Gonzalez Solares"
+__author__ = "Eduardo Gonzalez Solares"
 __email__ = "eglez@ast.cam.ac.uk"
 __version__ = "0.1.0"
 
 
-OWL_DONE = "OWL_DONE"
+OWL_SUCCESS = "OWL_SUCCESS"
+OWL_ERROR = "OWL_ERROR"
+
 SQLITEDB = "sqlite.db"
 
 
@@ -30,7 +32,10 @@ def setup_output(output_dir, clean=False):
         shutil.rmtree(output_dir)
 
     with suppress(Exception):
-        (output_dir / OWL_DONE).unlink()
+        (output_dir / OWL_SUCCESS).unlink()
+
+    with suppress(Exception):
+        (output_dir / OWL_ERROR).unlink()
 
     with suppress(Exception):
         (output_dir / SQLITEDB).unlink()
@@ -43,13 +48,20 @@ def pipeline(callable=None):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            pdef = wrapper.config
+            try:
+                pdef = wrapper.config
+            except Exception:
+                pdef = {}
+
             if callable is not None:
                 pre = callable(**kwargs)
                 output_dir = pre.get("output_dir")
                 clean_output = pre.get("clean_output", False)
             else:
-                output_dir = kwargs.get("output", None)
+                for k in ["output", "output_dir"]:
+                    output_dir = kwargs.get(k, None)
+                    if output_dir is not None:
+                        break
                 clean_output = kwargs.get("clean_output", False)
 
             if output_dir is not None:
@@ -72,10 +84,16 @@ def pipeline(callable=None):
                 session.commit()
 
             try:
+                success = False
                 result = function(*args, **kwargs)
+                success = True
             finally:
                 if output_dir is not None:
-                    (output_dir / OWL_DONE).touch()
+                    if success:
+                        (output_dir / OWL_SUCCESS).touch()
+                    else:
+                        (output_dir / OWL_ERROR).touch()
+
             return result
 
         return wrapper
