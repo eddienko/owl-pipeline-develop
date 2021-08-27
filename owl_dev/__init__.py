@@ -67,21 +67,21 @@ def pipeline(callable=None):
             if output_dir is not None:
                 setup_output(output_dir, clean=clean_output)
 
-                db.init_database(f"sqlite:///{output_dir}/{SQLITEDB}")
+                # db.init_database(f"sqlite:///{output_dir}/{SQLITEDB}")
                 with open(f"{output_dir}/config.yaml", "w") as fh:
                     fh.write(json.dumps(pdef))
 
-            else:
-                db.init_database("sqlite:///:memory:")
+            # else:
+            #     db.init_database("sqlite:///:memory:")
 
-            with closing(db.DBSession()) as session:
-                info = db.Info(
-                    config=JSONEncoder().encode(pdef),
-                    env=JSONEncoder().encode(dict(os.environ)),
-                    python=sys.version,
-                )
-                session.add(info)
-                session.commit()
+            # with closing(db.DBSession()) as session:
+            #     info = db.Info(
+            #         config=JSONEncoder().encode(pdef),
+            #         env=JSONEncoder().encode(dict(os.environ)),
+            #         python=sys.version,
+            #     )
+            #     session.add(info)
+            #     session.commit()
 
             try:
                 success = False
